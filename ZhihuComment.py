@@ -6,7 +6,7 @@ Created on Mon Jan 16 19:52:56 2023
 import requests,time,re
 import pandas as pd
 
-answer_url = 'https://www.zhihu.com/question/415539393/answer/2637543389'
+answer_url = 'https://www.zhihu.com/question/59841312/answer/2760795083'
 
 
 zhihu_comment = pd.DataFrame(columns = ['知乎用户','知乎ID','评论内容','IP属地','评论ID'])
@@ -24,7 +24,7 @@ def get_child_comment(comment_id,zhihu_comment):
         for data in dataList:
             comment_author = data['author']['name']
             comment_author_id = data['author']['url_token']
-            comment_author_id = data['author']['url_token'] #id
+            comment_author_id = "'"+str(comment_author_id) #id
             comment_content = data['content'] #评论内容
             ip_location = data['comment_tag'][0]['text']
             ip_location = ip_location.replace('IP 属地','') #IP 属地
@@ -36,10 +36,18 @@ def get_child_comment(comment_id,zhihu_comment):
         child_comment_url = resp_json['paging']['next']
     return child_comment
  
+#评论清洗
+
+def new_comment_content(comment_content):
+    comment_content = comment_content.replace('<p>','')
+    comment_content = comment_content.replace('<br>','')
+    comment_content = comment_content.replace('</p>','')
+    return comment_content
 
 headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'}
 
 answer_no = re.findall('answer/(.*)', answer_url)[0] #答案ID
+
 number_url = 'https://www.zhihu.com/api/v4/answers/%s/root_comments'%answer_no
 total_counts = requests.get(number_url,headers=headers).json()['common_counts']
 print('网页现实共有%s条评论'%total_counts)
@@ -62,6 +70,7 @@ while True:
     data = resp_json['data'][0]
     comment_author = data['author']['member']['name'] #作者
     comment_author_id = data['author']['member']['url_token'] #id
+    comment_author_id = str(comment_author_id)
     comment_content = data['content'] #评论内容
     ip_location = data['address_text']
     ip_location = ip_location.replace('IP 属地','') #IP 属地
@@ -73,4 +82,5 @@ while True:
     child_comment = get_child_comment(comment_id,zhihu_comment)  
     zhihu_comment = pd.concat([zhihu_comment,child_comment],ignore_index=True)
     page+=1
-zhihu_comment.to_excel('ZhihuComment.xlsx')
+zhihu_comment['评论内容'] = zhihu_comment['评论内容'].apply(new_comment_content)
+zhihu_comment.to_excel('ZhihuComment_%s.xlsx'%answer_no)
